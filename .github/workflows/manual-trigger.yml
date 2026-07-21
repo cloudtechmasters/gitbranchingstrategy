@@ -1,0 +1,13 @@
+name: Manual Trigger Demo
+on:
+  workflow_dispatch:
+    inputs:
+      issueKey:
+        description: 'Jira issue key that triggered this'
+        required: false
+        default: 'none'
+jobs:
+  say-hello:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Triggered from Jira issue ${{ github.event.inputs.issueKey }}"
