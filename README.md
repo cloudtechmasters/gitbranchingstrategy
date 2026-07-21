@@ -1,1 +1,1 @@
-gitbranchingstrategy
+gitbranchingstrategy.
