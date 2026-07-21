@@ -2,16 +2,26 @@ name: Auto-Comment on Push
 on:
   push:
     branches: [main]
-  workflow_dispatch:
-    inputs:
-      issueKey:
-        description: 'Jira issue key that triggered this'
-        required: false
-        default: 'none'
 jobs:
   notify-jira:
     runs-on: ubuntu-latest
     steps:
-      - name: Report push to Jira
+      - name: Extract Jira issue key from commit message
+        id: extract
         run: |
-          curl -s -X POST "https://4be30d12-1f7b-48f3-aee6-a33ec7f2211f.hello.atlassian-dev.net/x1/8I3zGANTp2xeaENTAZH5s6Iy1N4?issueKey=TEST-4&commentText=A%20new%20commit%20was%20just%20pushed%20to%20GitHub%20(cloudtechmasters%2Fgitbranchingstrategy%2C%20branch%20main).%20This%20comment%20was%20posted%20automatically%20by%20GitHub%20Actions%2C%20with%20no%20manual%20trigger%20involved%20-%20proving%20GitHub%20can%20independently%20act%20on%20Jira."
+          MSG="${{ github.event.head_commit.message }}"
+          ISSUE_KEY=$(echo "$MSG" | grep -oE '[A-Z]+-[0-9]+' | head -n 1)
+          echo "issueKey=$ISSUE_KEY" >> "$GITHUB_OUTPUT"
+
+      - name: Report push to Jira with run link
+        if: steps.extract.outputs.issueKey != ''
+        run: |
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          MESSAGE="This comment was posted automatically by a GitHub Actions workflow, an external system, calling directly into our Jira Forge REST endpoint. View the run: ${RUN_URL}"
+          curl -s -G -X POST "https://4be30d12-1f7b-48f3-aee6-a33ec7f2211f.hello.atlassian-dev.net/x1/8I3zGANTp2xeaENTAZH5s6Iy1N4" \
+            --data-urlencode "issueKey=${{ steps.extract.outputs.issueKey }}" \
+            --data-urlencode "commentText=${MESSAGE}"
+
+      - name: No Jira issue key found
+        if: steps.extract.outputs.issueKey == ''
+        run: echo "No Jira issue key found in commit message — skipping Jira comment."
