@@ -11,3 +11,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: echo "Triggered from Jira issue ${{ github.event.inputs.issueKey }}"
+      - name: Report back to Jira
+        run: |
+          curl -s -X POST "https://4be30d12-1f7b-48f3-aee6-a33ec7f2211f.hello.atlassian-dev.net/x1/8I3zGANTp2xeaENTAZH5s6Iy1N4?issueKey=${{ github.event.inputs.issueKey }}"
