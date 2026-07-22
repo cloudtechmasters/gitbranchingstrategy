@@ -1,27 +1,37 @@
-name: Auto-Comment on Push
+name: Jira-GitHub Bidirectional Demo
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      issueKey:
+        description: 'Jira issue key that triggered this'
+        required: false
+        default: ''
 jobs:
   notify-jira:
     runs-on: ubuntu-latest
     steps:
-      - name: Extract Jira issue key from commit message
-        id: extract
+      - name: Determine Jira issue key
+        id: resolve
         run: |
-          MSG="${{ github.event.head_commit.message }}"
-          ISSUE_KEY=$(echo "$MSG" | grep -oE '[A-Z]+-[0-9]+' | head -n 1)
+          if [ -n "${{ github.event.inputs.issueKey }}" ]; then
+            ISSUE_KEY="${{ github.event.inputs.issueKey }}"
+          else
+            MSG="${{ github.event.head_commit.message }}"
+            ISSUE_KEY=$(echo "$MSG" | grep -oE '[A-Z]+-[0-9]+' | head -n 1)
+          fi
           echo "issueKey=$ISSUE_KEY" >> "$GITHUB_OUTPUT"
 
-      - name: Report push to Jira with run link
-        if: steps.extract.outputs.issueKey != ''
+      - name: Report to Jira with run link
+        if: steps.resolve.outputs.issueKey != ''
         run: |
           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           MESSAGE="This comment was posted automatically by a GitHub Actions workflow, an external system, calling directly into our Jira Forge REST endpoint. View the run: ${RUN_URL}"
           curl -s -G -X POST "https://4be30d12-1f7b-48f3-aee6-a33ec7f2211f.hello.atlassian-dev.net/x1/8I3zGANTp2xeaENTAZH5s6Iy1N4" \
-            --data-urlencode "issueKey=${{ steps.extract.outputs.issueKey }}" \
+            --data-urlencode "issueKey=${{ steps.resolve.outputs.issueKey }}" \
             --data-urlencode "commentText=${MESSAGE}"
 
-      - name: No Jira issue key found
-        if: steps.extract.outputs.issueKey == ''
-        run: echo "No Jira issue key found in commit message — skipping Jira comment."
+      - name: No issue key found
+        if: steps.resolve.outputs.issueKey == ''
+        run: echo "No Jira issue key found — skipping Jira comment."
